@@ -1,0 +1,21 @@
+::-webkit-scrollbar{
+    width: 0;
+}
+
+#slider::after{
+    content:"";
+    position:absolute;
+    height:4px;
+    width:var(--sliderWidthValue);
+    border-radius:20px;
+    background-color:rgba(0,0,0,.8); 
+    bottom:-10px;
+    left:var(--sliderLeftValue);
+    transition:all .2s linear;
+}
+select{
+    width:40%;
+}
+option{
+    width:100%;
+}
