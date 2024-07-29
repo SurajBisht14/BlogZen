@@ -42,11 +42,12 @@ const articleSchema = new mongoose.Schema({
  
     description: { 
         type: String, 
-        minlength: [5, 'Description must be at least 5 characters long'], 
+        minlength: [10, 'Description must be at least 5 characters long'], 
         maxlength: [150, 'Description cannot exceed 150 characters'] 
     },
     content: { 
         type: String, 
+        minlength: [10, 'Description must be at least 5 characters long'], 
         minlength: [20, 'Content must be at least 20 characters long'] 
     },
     category: { 

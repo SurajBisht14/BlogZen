@@ -5,7 +5,6 @@ const express = require('express');
 const app = express();
 const multer = require("multer");
 const cloudinary = require('cloudinary').v2;
-const fs = require("fs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const moment = require('moment');         //time library
@@ -19,12 +18,19 @@ app.use(cookieParser());
 
 const { User, Category, Article, Comments } = require('./schema_model.js'); // Importing schema model
 
-app.use(cors(
-  {
-    origin: 'http://localhost:5173', // Your client URL
-    credentials: true // Allow credentials (cookies) to be sent
-  }
-)); // Using CORS
+// app.use(cors(
+//   {
+//     origin: 'http://localhost:5173', // Your client URL
+//     credentials: true // Allow credentials (cookies) to be sent
+//   }
+// )); // Using CORS
+app.use(cors({
+  origin: 'https://blog-zen.vercel.app',
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 
 // Middleware to parse URL-encoded data and JSON data
 app.use(express.urlencoded({ extended: true }));
@@ -85,7 +91,7 @@ app.post('/', async (req, res) => {
 
     // Find articles related to the blog category
     let articleData = await Article.find({ category: relatedBlogData._id });
-    let categories = await Category.find().sort({ name : 1 });
+    let categories = await Category.find().sort({ name: 1 });
 
     // Send the response with the related blog and article data
     return res.json({
@@ -153,17 +159,22 @@ app.post('/login', async (req, res) => {
     let token = jwt.sign({ id: userData._id }, process.env.SECRET_CODE, { expiresIn: '3h' });
     let tokenExpiration = new Date().getTime() + 3 * 60 * 60 * 1000; // 3 hours from now
 
+    // res.cookie('cookieOfUser', token, {
+    //   httpOnly: true,
+    //   secure: false
+    // });
     res.cookie('cookieOfUser', token, {
       httpOnly: true,
-      secure: false
+      secure: process.env.NODE_ENV === 'production', // true in production
+      sameSite: 'None' // Required for cross-site cookie usage
     });
 
     return res.json(
       {
         msg: "Login successful",
-        username : userData.username,
-        token : token,
-        tokenExpiration : tokenExpiration
+        username: userData.username,
+        token: token,
+        tokenExpiration: tokenExpiration
       }
     );
   }
@@ -178,9 +189,9 @@ app.post('/login', async (req, res) => {
 
 
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, './images');  // Ensure this directory exists
-  },
+  // destination: function (req, file, cb) {
+  //   cb(null, './images');  // Ensure this directory exists
+  // },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}_${file.originalname}`);  // Adding a unique timestamp
   }
@@ -203,11 +214,11 @@ const uploadOnCloudinary = async (localFilePath) => {
     let response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: "auto"
     })
-    fs.unlinkSync(localFilePath);
+    // fs.unlinkSync(localFilePath);
     return response
   }
   catch (error) {
-    fs.unlinkSync(localFilePath);
+    // fs.unlinkSync(localFilePath);
     console.log("can't upload file", error)
     return null
 
@@ -225,18 +236,21 @@ app.post('/createBlog', auth, upload.single("blogimg"), async (req, res) => {
     if (!uploadResult) {
       return res.status(500).json({ msg: 'Failed to upload image' });
     }
+
+    function changeToUpperCase(word) {
+      if (word.length === 0) return word; // handle empty string
+      let firstLetter = word[0].toUpperCase();
+      let restOfWord = word.slice(1).toLowerCase();
+      return firstLetter + restOfWord;
+    }
+
     const { title, category_name, description, content } = req.body;
 
-    let findCategory = await Category.findOne({ name: category_name });
+    let findCategory = await Category.findOne({ name: changeToUpperCase(category_name) });
     const username = await User.findOne({ _id: req.user.id });
 
     if (!findCategory) {
-      function changeToUpperCase(word) {
-        if (word.length === 0) return word; // handle empty string
-        let firstLetter = word[0].toUpperCase();
-        let restOfWord = word.slice(1).toLowerCase();
-        return firstLetter + restOfWord;
-      }
+
       const createCategory = new Category({ name: changeToUpperCase(category_name) });
       await createCategory.save();
       findCategory = createCategory; // Update findCategory with the newly created category
@@ -262,67 +276,95 @@ app.post('/createBlog', auth, upload.single("blogimg"), async (req, res) => {
       await createnewArticle.save();
       return res.status(200).json({ msg: "Blog created successfully" });
     }
-  } catch (err) {
-    return res.status(500).json({ error: `An error occurred: ${err}` });
+  }
+  catch (error) {
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      const combinedMessage = messages.join(', '); // or use a different separator
+      return res.status(400).json({ error: combinedMessage });
+    }
+    return res.status(500).json({ error: `An error occurred: ${error}` });
   }
 });
 
-  app.post('/updateBlog', auth, upload.single("blogimg"), async (req, res) => {
-    if (!req.user) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-  
-    try {
-      let imageUrl;
-      if (req.file) {
-        // Only if a file is included in the request, upload it to Cloudinary
-        const uploadResult = await uploadOnCloudinary(req.file.path);
-        if (!uploadResult) {
-          return res.status(500).json({ msg: 'Failed to upload image' });
-        }
-        imageUrl = uploadResult.secure_url;
-      }
-  
-      const { title, category_name, description, content, article_id } = req.body;
 
-  
-      const findCategory = await Category.findOne({ name: category_name });
-      const username = await User.findOne({ _id: req.user.id });
-  
-      const allArticleData = {
-        author: username.username,
-        author_id: req.user.id,
-        title: title,
-        publishedAt: formatDate(),
-        description: description,
-        content: content,
-        category: findCategory._id,
-        category_name: findCategory.name
-      };
-  
-      // Only include urlToImage if a new image was uploaded
-      if (imageUrl) {
-        allArticleData.urlToImage = imageUrl;
+
+//update blog
+
+app.post('/updateBlog', auth, upload.single("blogimg"), async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  try {
+    let imageUrl;
+    if (req.file) {
+      // Only if a file is included in the request, upload it to Cloudinary
+      const uploadResult = await uploadOnCloudinary(req.file.path);
+      if (!uploadResult) {
+        return res.status(500).json({ msg: 'Failed to upload image' });
       }
-  
-      const result = await Article.findOneAndUpdate(
-        { _id: article_id },
-        allArticleData,
-        { new: true }
-      );
-  
-      if (result) {
-        res.json({ msg: "Blog updated successfully" });
-      } else {
-        res.status(404).json({ msg: "Blog not found" });
-      }
-  
-    } catch (err) {
-      return res.status(500).json({ error: `An error occurred: ${err.message}` });
+      imageUrl = uploadResult.secure_url;
     }
-  });
-  
-  
+
+    function changeToUpperCase(word) {
+      if (word.length === 0) return word; // handle empty string
+      let firstLetter = word[0].toUpperCase();
+      let restOfWord = word.slice(1).toLowerCase();
+      return firstLetter + restOfWord;
+    }
+
+    const { title, category_name, description, content, article_id } = req.body;
+
+    let findCategory = await Category.findOne({ name: changeToUpperCase(category_name) });
+    const username = await User.findOne({ _id: req.user.id });
+
+    if (!findCategory) {
+      const createCategory = new Category({ name: changeToUpperCase(category_name) });
+      await createCategory.save();
+      findCategory = createCategory; // Update findCategory with the newly created category
+    }
+
+    const allArticleData = {
+      author: username.username,
+      author_id: req.user.id,
+      title: title,
+      publishedAt: formatDate(),
+      description: description,
+      content: content,
+      category: findCategory._id,
+      category_name: findCategory.name
+    };
+
+    // Only include urlToImage if a new image was uploaded
+    if (imageUrl) {
+      allArticleData.urlToImage = imageUrl;
+    }
+
+    const result = await Article.findOneAndUpdate(
+      { _id: article_id },
+      allArticleData,
+      { new: true }
+    );
+
+    if (result) {
+      return res.json({ msg: "Blog updated successfully" });
+    } else {
+      return res.status(404).json({ error: "Blog not found" });
+    }
+
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      const combinedMessage = messages.join(', '); // or use a different separator
+      return res.status(400).json({ error: combinedMessage });
+    }
+    return res.status(500).json({ error: `An error occurred: ${error}` });
+  }
+});
+
+
+
 
 
 
@@ -330,77 +372,77 @@ app.post('/createBlog', auth, upload.single("blogimg"), async (req, res) => {
 
 // comment section
 
-app.post('/article_comments',auth,async (req, res) => {
- 
-  try{
+app.post('/article_comments', auth, async (req, res) => {
+
+  try {
     const { comment, articleId } = req.body;
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
     const postedBy = user.username;
-    const posted_on = formatDate();    
+    const posted_on = formatDate();
 
-    const comment_Added = new Comments({comment,postedBy, articleId,posted_on})
+    const comment_Added = new Comments({ comment, postedBy, articleId, posted_on })
 
     comment_Added.save();
 
     res.json({
-      msg:"Comment Posted",
-      comment : comment_Added
+      msg: "Comment Posted",
+      comment: comment_Added
     })
 
   }
-  catch(error){
-    res.json({error})
+  catch (error) {
+    res.json({ error })
   }
 }
 )
 
 app.post('/get_comments', async (req, res) => {
   try {
-      const { articleId } = req.body;
+    const { articleId } = req.body;
 
-      const commentData = await Comments.find({ articleId });
+    const commentData = await Comments.find({ articleId });
 
-      if (commentData.length === 0) {
-          res.status(200).json({ msg: "No comments yet" });
-      } else {
-          res.status(200).json({
-              msg: "All comments are these",
-              comments: commentData
-          });
-      }
+    if (commentData.length === 0) {
+      res.status(200).json({ msg: "No comments yet" });
+    } else {
+      res.status(200).json({
+        msg: "All comments are these",
+        comments: commentData
+      });
+    }
   } catch (error) {
-      res.status(500).json({ msg: "Some error occurred while fetching comments" });
+    res.status(500).json({ msg: "Some error occurred while fetching comments" });
   }
 });
 
 
 //getting my blogs
 
-app.get('/get_myBlogs',auth,async (req,res)=>{
+app.get('/get_myBlogs', auth, async (req, res) => {
 
-  try{
+  try {
     let user = await User.findById(req.user.id);
-    if(!user){
+    if (!user) {
       res.json({
-        msg:"user doesn't exists"
+        msg: "user doesn't exists"
       })
     }
-    let allBlogs = await Article.find({author_id : user._id});
+    let allBlogs = await Article.find({ author_id: user._id });
     res.json({
       msg: "getMyblogs request came",
-      user : user,
-      allBlogs : allBlogs
+      user: user,
+      allBlogs: allBlogs
     })
   }
-  catch(error){
+  catch (error) {
     res.json({
       error: error
     })
   }
-   
+
 
 })
 
@@ -416,6 +458,7 @@ app.get('/logout', (req, res) => {
 
 
 
-app.listen(7000, () => {
-  console.log("Express server is running on port 7000");
+const port = process.env.PORT || 7000;
+app.listen(port, () => {
+  console.log(`Express server is running on port ${port}`);
 });

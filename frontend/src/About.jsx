@@ -1,3 +1,5 @@
+import loaderImg from './images/loader.svg';
+import laptopImg from './images/laptop.jpg';
 function About() {
     return (
         <>
@@ -15,7 +17,7 @@ function About() {
                         </p>
                     </div>
                     <div className="w-full lg:w-6/12">
-                        <img  src="/src/images/blogginImage.jpg" alt="people discussing on board" className=" w-full md:w-[450px] mx-auto" />
+                        <img  src={laptopImg} alt="people discussing on board" className=" w-full md:w-[500px] md:h-[500px] mx-auto rounded-md" />
                     </div>
                 </div>
 

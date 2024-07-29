@@ -1,7 +1,9 @@
 import { useState, useContext, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { MyContext } from './App.jsx';
-import img from '/src/images/createBg.jpg'
+import img from '/src/images/createBg.jpg';
+import loaderImg from './images/loader.svg';
+import robo from './images/robo.png';
 
 function Blogs() {
     const [formData, setFormData] = useState({
@@ -16,6 +18,7 @@ function Blogs() {
     const [successMsg, setSuccessMsg] = useState("");
     const { authState, setAuthState } = useContext(MyContext);
     const imagefileinput = useRef(null);
+    let [ErrorMsg, setErrorMsg] = useState("");
 
     function handleInputChange(event) {
         const { name, value } = event.target;
@@ -57,7 +60,7 @@ function Blogs() {
 
             if (fetchedData.ok) {
                 setSuccessMsg(data.msg);
-                setTimeout(() => setSuccessMsg(''), 2000);
+                setTimeout(() => setSuccessMsg(''), 5000);
 
                 setFormData({
                     blogimg: null,
@@ -68,8 +71,11 @@ function Blogs() {
                 });
                 setImagePreview(null);
                 imagefileinput.current.value = null;
-            } else {
-                console.error("Some error occurred", data);
+            }
+            else {
+                console.log('Server response:', data);
+                setErrorMsg(data.error || 'An error occurred');
+                setTimeout(() => setErrorMsg(''), 5000);
             }
         } catch (error) {
             console.error("Error submitting blog:", error);
@@ -89,10 +95,21 @@ function Blogs() {
             {
                 loading &&
                 <div className='h-screen w-screen fixed flex items-center justify-center z-50'>
-                    <img src="/src/images/loader.svg" className='w-[100px]' alt="Loading" />
+                    <img src={loaderImg} className='w-[100px]' alt="Loading" />
                 </div>
             }
-            {successMsg && <div className='fixed z-20 transition-all top-[13vh] bg-green-200 text-green-600 border-2 border-green-600 w-full font-bold h-[5%] p-5 flex items-center justify-center font-serif text-[25px]'>{successMsg}</div>}
+
+            {ErrorMsg.length > 0 &&       
+
+                <p className="text-sm  bg-red-200 py-2 w-full text-red-600 fixed  top-[13vh] z-50 text-center">{ErrorMsg} <span className='absolute right-4 text-red-600 hover:cursor-pointer text-[20px] font-extrabold' onClick={() => { setErrorMsg("") }}>&#10005;</span></p>
+                
+            }
+
+            {successMsg.length > 0 &&
+
+                <p className="text-sm  bg-green-200 py-2 w-full text-green-600 fixed  top-[13vh] z-50 text-center">{successMsg} <span className='absolute right-4 text-green-600 hover:cursor-pointer text-[20px] font-extrabold' onClick={() => { setSuccessMsg("") }}>&#10005;</span></p>
+
+            }
 
             {authState.isAuth ? (
 
@@ -241,7 +258,7 @@ function Blogs() {
                         </div>
                         <div className="">
                             <img
-                                src="/src/images/robo.png"
+                                src={robo}
                                 alt="404"
                                 className="h-full w-[300px] lg:w-[450px] rounded-md object-cover"
                             />

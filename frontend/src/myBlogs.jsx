@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
+import loaderImg from './images/loader.svg';
+import searchImages from './images/searchImages.jpg';
 
 function MyBlogs() {
-
     const [myBlogs, setMyBlogs] = useState([]);
     const [Toshow, setToshow] = useState({});
     const [formData, setFormData] = useState({
@@ -12,17 +13,18 @@ function MyBlogs() {
         description: '',
         content: '',
         article_id: '',
-        urlToImage:''
+        urlToImage: ''
     });
 
-    const noBlogs = useRef(null)
-
+    const noBlogs = useRef(null);
     const [imagePreview, setImagePreview] = useState(null);
     const imagefileinput = useRef(null);
     const [showUpdatebox, setShowUpdatebox] = useState(false);
     const [loading, setLoading] = useState(false);
     const [successMsg, setSuccessMsg] = useState("");
-    const [changeImage, setchangeImage] = useState(false);
+    const [changeImage, setChangeImage] = useState(false);
+    const [ErrorMsg, setErrorMsg] = useState("");
+
 
     function handleInputChange(event) {
         const { name, value } = event.target;
@@ -42,60 +44,58 @@ function MyBlogs() {
     }
 
     useEffect(() => {
-        checkForMyBlogs();
+        async function fetchData() {
+            setLoading(true);
+            try {
+                // Fetch blogs
+                const blogsResponse = await fetch("http://localhost:7000/get_myBlogs", {
+                    method: "GET",
+                    credentials: "include",
+                });
+                const blogsData = await blogsResponse.json();
+                setMyBlogs(blogsData.allBlogs.map(blog => ({ ...blog, comments: [] })));
+
+                // Fetch comments for each blog
+                const commentsPromises = blogsData.allBlogs.map(blog =>
+                    fetch("http://localhost:7000/get_comments", {
+                        method: "POST",
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ articleId: blog._id }),
+                    })
+                        .then(res => res.json())
+                        .then(data => ({
+                            blogId: blog._id,
+                            comments: data.comments || []
+                        }))
+                );
+                const commentsData = await Promise.all(commentsPromises);
+
+                setMyBlogs(prevBlogs =>
+                    prevBlogs.map(blog => {
+                        const blogComments = commentsData.find(item => item.blogId === blog._id);
+                        return blogComments ? { ...blog, comments: blogComments.comments } : blog;
+                    })
+                );
+
+                if (myBlogs.length === 0) {
+                    if (noBlogs.current) {
+                        noBlogs.current.style.opacity = '1';
+                    }
+                } else {
+                    if (noBlogs.current) {
+                        noBlogs.current.style.opacity = '0';
+                    }
+                }
+
+            } catch (error) {
+                console.error("Error fetching blogs and comments:", error);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchData();
     }, [successMsg]);
-
-    async function checkForMyBlogs() {
-        try {
-            setLoading(true)
-            let fetchServer = await fetch("http://localhost:7000/get_myBlogs", {
-                method: "GET",
-                credentials: "include",
-            });
-            let data = await fetchServer.json();
-            setMyBlogs(data.allBlogs.map(blog => ({ ...blog, comments: [] })));
-
-            // Fetch comments for each blog
-            for (let blog of data.allBlogs) {
-                await fetchComments(blog._id);
-            }
-            if(myBlogs.length===0){
-                if(noBlogs.current){
-                    noBlogs.current.style.opacity='1';
-                }
-            }
-            else{
-                if(noBlogs.current){
-                    noBlogs.current.style.opacity='0';
-                }
-            }
-            setLoading(false)
-        } catch (error) {
-            console.log(error);
-        }
-    }
-
-    async function fetchComments(blogId) {
-        try {
-            setLoading(true)
-            const fetchData = await fetch("http://localhost:7000/get_comments", {
-                method: "POST",
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({ articleId: blogId }),
-            });
-
-            const data2 = await fetchData.json();
-            setMyBlogs(prevBlogs => prevBlogs.map(blog =>
-                blog._id === blogId ? { ...blog, comments: data2.comments || [] } : blog
-            ));
-            setLoading(false)
-        } catch (error) {
-            console.log(error);
-        }
-    }
 
     async function handleSubmit(event) {
         event.preventDefault();
@@ -106,11 +106,10 @@ function MyBlogs() {
             return;
         }
 
+        finalFormData = new FormData();
         if (changeImage) {
-            finalFormData = new FormData();
             finalFormData.append('blogimg', formData.blogimg);
         } else {
-            finalFormData = new FormData();
             finalFormData.append('urlToImage', formData.urlToImage);
         }
 
@@ -122,19 +121,16 @@ function MyBlogs() {
 
         try {
             setLoading(true);
-            let fetchedData = await fetch('http://localhost:7000/updateBlog', {
+            const response = await fetch('http://localhost:7000/updateBlog', {
                 method: 'POST',
                 credentials: 'include',
                 body: finalFormData
             });
-            let data = await fetchedData.json();
+            const data = await response.json();
 
-            if (fetchedData.ok) {
-
-
+            if (response.ok) {
                 setSuccessMsg(data.msg);
                 setTimeout(() => setSuccessMsg(''), 2000);
-
                 setFormData({
                     blogimg: null,
                     title: '',
@@ -148,26 +144,20 @@ function MyBlogs() {
                 if (imagefileinput.current) {
                     imagefileinput.current.value = null;
                 }
-                setLoading(false);
-                setShowUpdatebox(false); // Hide the update box after submission
-                if(changeImage){
-                    window.location.reload();
-                } 
-                else{
-                    setchangeImage(false);
-                }
-                
-
-               
-            } else {
-                console.error("Some error occurred", data);
+                setShowUpdatebox(false);
+                setChangeImage(false);
+            }
+            else {
+                console.log('Server response:', data);
+                setErrorMsg(data.error || 'An error occurred');
+                setTimeout(() => setErrorMsg(''), 5000);
             }
         } catch (error) {
             console.error("Error submitting blog:", error);
+        } finally {
+            setLoading(false);
         }
     }
-
-
 
     function toggleEdit(blogId) {
         const blogToEdit = myBlogs.find(blog => blog._id === blogId);
@@ -179,7 +169,7 @@ function MyBlogs() {
                 description: blogToEdit.description,
                 content: blogToEdit.content,
                 article_id: blogId,
-                urlToImage : blogToEdit.urlToImage
+                urlToImage: blogToEdit.urlToImage
             });
             setShowUpdatebox(true);
         }
@@ -194,274 +184,241 @@ function MyBlogs() {
 
     return (
         <>
-            <div className="w-full h-[87vh] overflow-y-scroll relative">
-
-
-                {
-                    loading &&
+            <div className="w-full h-[87vh] overflow-y-scroll relative flex flex-col items-center justify-center">
+                {loading && (
                     <div className='h-screen w-screen fixed flex items-center justify-center z-50'>
-                        <img src="/src/images/loader.svg" className='w-[100px]' alt="Loading" />
+                        <img src={loaderImg} className='w-[100px]' alt="Loading" />
                     </div>
+                )}
+                {ErrorMsg.length > 0 &&
+
+                    <p className="text-sm  bg-red-200 py-2 w-full text-red-600 fixed  top-[13vh] z-50 text-center">{ErrorMsg} <span className='absolute right:0 pd-1 md:right-4 text-red-600 hover:cursor-pointer text-[20px] font-extrabold' onClick={() => { setErrorMsg("") }}>&#10005;</span></p>
+
                 }
 
-                {successMsg && <div className='fixed z-20 transition-all top-[13vh] bg-green-200 text-green-600 border-2 border-green-600 w-full font-bold h-[5%] p-5 flex items-center justify-center font-serif text-[25px]'>{successMsg}</div>}
+                {successMsg.length > 0 &&
 
+                    <p className="text-sm  bg-green-200 py-2 w-full text-green-600 fixed  top-[13vh] z-50 text-center">{successMsg} <span className='absolute  right-4 text-green-600 hover:cursor-pointer text-[20px] font-extrabold' onClick={() => { setSuccessMsg("") }}>&#10005;</span></p>
 
+                }
                 {/* blog update */}
-
-                {
-                    showUpdatebox &&
-                    <div className="w-full  h-full fixed  z-20 overflow-y-scroll flex  justify-center bg-[rgba(0,0,0,.6)] backdrop-blur-sm">
-
-                        <div className="h-[90%] w-[95%] sm:w-[80%] md:w-[60%] lg:w-[40%] relative">
-
-                            <form onSubmit={handleSubmit} className="px-5 rounded-lg shadow-md w-full pb-32 mt-auto  z-10   border"  encType="multipart/form-data">
-                                <span className="text-white font-extrabold h-[55px]  pr-2 items-center flex justify-end  text-[30px] hover:cursor-pointer hover:text-[rgb(61,133,242)]"><i className="fa-solid fa-xmark" onClick={() => { setShowUpdatebox(!showUpdatebox) }}></i></span>
-                                <h1 className="text-2xl w-full text-center bg-white text-[rgb(61,133,242)] font-bold mb-4 rounded-lg lg:p-3 font-serif ">Update Blog</h1>
-
-
-                                <label className="block text-white text-sm font-bold pl-2  mt-6 mb-3 relative">Image
-                                    <span className="font-thin rounded-md p-1 bottom-0 bg-[rgb(61,133,242)] absolute right-0 hover:cursor-pointer" onClick={() => setchangeImage(!changeImage)}>Change Image</span></label>
+                {showUpdatebox && (
+                    <div className="w-full h-full fixed z-20 overflow-y-scroll flex justify-center  bg-[rgba(0,0,0,.6)] backdrop-blur-sm">
+                        <div className=" flex flex-col items-center justify-around mt-14  w-[95%] sm:w-[80%] md:w-[60%] lg:w-[40%]  relative">
+                            <form onSubmit={handleSubmit} className="px-5 rounded-lg shadow-md w-full pb-16 mt-auto z-10 border" encType="multipart/form-data">
+                                <span className="text-white  font-extrabold h-[55px] pr-2 items-center flex justify-end text-[30px] hover:cursor-pointer hover:text-[rgb(61,133,242)]">
+                                    <i className="fa-solid fa-xmark" onClick={() => setShowUpdatebox(!showUpdatebox)}></i>
+                                </span>
+                                <h1 className="text-2xl w-full text-center bg-white text-[rgb(61,133,242)] font-bold mb-4 rounded-lg lg:p-3 font-serif">Update Blog</h1>
+                                <label className="block text-white text-sm font-bold pl-2 mt-6 mb-3 relative">
+                                    Image
+                                    <span className="font-thin rounded-md p-1 bottom-0 bg-[rgb(61,133,242)] absolute right-0 hover:cursor-pointer" onClick={() => setChangeImage(!changeImage)}>Change Image</span>
+                                </label>
                                 <div className="mb-4 relative h-[300px]">
-
-                                    {
-                                        changeImage ? (
-                                            <>
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    name="blogimg"
-                                                    onChange={handleFileChange}
-                                                    className="absolute inset-0 opacity-0 w-full h-full z-10 cursor-pointer "
-                                                    required
-                                                    ref={imagefileinput}
-                                                />
-                                                {!imagePreview && (
-                                                    <div className="absolute inset-0 flex items-center justify-center text-white font-bold border z-0 rounded-lg overflow-hidden">
-                                                        Choose File or drag file here
-                                                    </div>
-                                                )}
-                                                {imagePreview && (
-                                                    <img src={imagePreview} alt="Preview" className="absolute inset-0 w-full h-full object-center rounded-lg border" />
-                                                )}
-                                            </>
-                                        ) : (
-                                            <img src={formData.urlToImage} className="w-full h-full"/>
-                                        )
-                                    }
+                                    {changeImage ? (
+                                        <>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                name="blogimg"
+                                                onChange={handleFileChange}
+                                                className="absolute inset-0 opacity-0 w-full h-full z-10 cursor-pointer"
+                                                required
+                                                ref={imagefileinput}
+                                            />
+                                            {!imagePreview && (
+                                                <div className="absolute inset-0 flex items-center justify-center text-white font-bold border z-0 rounded-lg overflow-hidden">
+                                                    Choose File or drag file here
+                                                </div>
+                                            )}
+                                            {imagePreview && (
+                                                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover rounded-md" />
+                                            )}
+                                        </>
+                                    ) : (
+                                        <img
+                                            src={formData.urlToImage || searchImages}
+                                            alt="Blog Image"
+                                            className="w-full h-full object-cover rounded-md"
+                                        />
+                                    )}
                                 </div>
-
-
-                                <div className="mb-4">
-                                    <label className="block text-white text-sm font-bold mb-2">Title</label>
+                                <div className="relative mb-4">
                                     <input
                                         type="text"
                                         name="title"
                                         value={formData.title}
                                         onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border rounded focus:outline-none focus:border-indigo-500"
-                                        placeholder="Enter blog title"
+                                        placeholder="Title"
+                                        className="w-full px-4 py-2 border rounded-md"
                                         required
                                     />
                                 </div>
-
-                                <div className="mb-4">
-                                    <label className="block text-white text-sm font-bold mb-2">Category</label>
+                                <div className="relative mb-4">
                                     <input
                                         type="text"
                                         name="category_name"
                                         value={formData.category_name}
                                         onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border rounded focus:outline-none focus:border-indigo-500"
-                                        placeholder="Enter blog category eg. Tech, Food, Health"
+                                        placeholder="Category"
+                                        className="w-full px-4 py-2 border rounded-md"
                                         required
                                     />
                                 </div>
-
-                                <div className="mb-4">
-                                    <label className="block text-white text-sm font-bold mb-2">Description</label>
-                                    <textarea
+                                <div className="relative mb-4">
+                                    <input
+                                        type="text"
                                         name="description"
                                         value={formData.description}
                                         onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border rounded focus:outline-none focus:border-indigo-500"
-                                        placeholder="Enter blog description"
-                                        rows="3"
+                                        placeholder="Description"
+                                        className="w-full px-4 py-2 border rounded-md"
                                         required
-                                    ></textarea>
+                                    />
                                 </div>
-
-                                <div className="mb-4">
-                                    <label className="block text-white text-sm font-bold mb-2">Content</label>
+                                <div className="relative mb-4">
                                     <textarea
                                         name="content"
                                         value={formData.content}
                                         onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border rounded focus:outline-none focus:border-indigo-500"
-                                        placeholder="Enter blog content"
+                                        placeholder="Content"
+                                        className="w-full px-4 py-2 border rounded-md"
                                         rows="5"
                                         required
                                     ></textarea>
                                 </div>
-
-                                <div className="flex justify-end">
-                                    <button
-                                        type="submit"
-                                        className="bg-[rgb(61,133,242)] w-full text-center text-white px-4 py-3 rounded hover:bg-[rgba(61,133,242,.9)] focus:outline-none "
-                                    >
-                                        Update
-                                    </button>
+                                <input type="hidden" name="article_id" value={formData.article_id} />
+                                <div className="flex justify-center">
+                                    <button type="submit" className="bg-blue-500 text-white  w-full text-center px-6 py-2 rounded-md hover:bg-blue-600">Update</button>
                                 </div>
                             </form>
-
-                        </div>
-                    </div>
-                }
-
-                {myBlogs.length === 0 ? (
-                    <div className="h-full w-full flex items-center justify-center opacity-0" ref={noBlogs}>
-                        <div className="flex flex-col items-center mt-auto lg:mt-0 px-2 lg:flex-row">
-                            <div>
-                                <div className="ml-5 lg:ml-0">
-                                    <h1 className="mt-3 text-2xl font-semibold text-gray-800 md:text-3xl">
-                                        Oops, no blogs are posted yet.
-                                    </h1>
-                                    <p className="mt-4 text-gray-500">
-                                        You haven't created any blogs yet, click the button below to create one.
-                                    </p>
-                                    <div className="mt-6 flex items-center gap-x-3">
-                                        <Link to="/">
-                                            <button
-                                                type="button"
-                                                className="inline-flex items-center rounded-md border border-black px-3 py-2 text-sm font-semibold text-black shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-                                            >
-                                                Read blogs
-                                            </button>
-                                        </Link>
-                                        <Link to="/createBlogs">
-                                            <button
-                                                type="button"
-                                                className="rounded-md bg-black px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-                                            >
-                                                Create Blogs
-                                            </button>
-                                        </Link>
-                                    </div>
-                                </div>
-                                <div className="mt-10 space-y-6 ml-5 lg:ml-0">
-                                    <div>
-                                        <a
-                                            href="#"
-                                            className="hover:underline inline-flex items-center gap-x-2 text-sm font-semibold text-black"
-                                        >
-                                            <span>Learn something new</span>
-                                        </a>
-                                        <p className="mt-2 text-sm text-gray-500">Dive into our blogs to learn more.</p>
-                                    </div>
-                                    <div>
-                                        <a
-                                            href="#"
-                                            className="inline-flex items-center gap-x-2 text-sm font-semibold text-black hover:underline"
-                                        >
-                                            <span>Our blog</span>
-                                        </a>
-                                        <p className="mt-2 text-sm text-gray-500">Read the latest posts on our blog.</p>
-                                    </div>
-                                    <div>
-                                        <a
-                                            href="#"
-                                            className="inline-flex items-center gap-x-2 text-sm font-semibold text-black hover:underline"
-                                        >
-                                            <span>Chat</span>
-                                        </a>
-                                        <p className="mt-2 text-sm text-gray-500">Comment on different posts.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <img
-                                    src="/src/images/searchImages.jpg"
-                                    alt="404"
-                                    className="h-full w-[300px] lg:w-[400px] rounded-md object-cover"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="h-full w-full flex justify-center">
-                        <div>
-                            <h1 className="font-bold text-[25px] mt-2 text-center">Total Blogs - {myBlogs.length}</h1>
-                            {myBlogs.map((e,i) => (
-                                      
-                                <div key={e._id} className="w-[98%] mx-auto sm:w-[450px] mt-5 rounded-md border shadow-md ">
-                                    <img
-                                        src={e.urlToImage}
-                                        alt="Blog Image"
-                                        className="h-[200px] w-full rounded-md md:object-cover "
-                                    />
-                                    <div className="p-4">
-                                        <h1 className="text-sm font-semibold">Title - {e.title}</h1>
-                                        <h1 className="text-sm font-semibold">Description - {e.description}</h1>
-                                        
-                                      
-                                         <p className="mt-3 text-sm text-gray-600">{e.content} 
-                                             <Link to='/blogInfo' className="font-bold cursor-pointer" key={i} state={{ article: e }}>read more</Link>
-                                        </p>
-                                         
-
-                                        {/* Comment section */}
-                                        {
-                                            Toshow[e._id] &&
-                                            <div className='border mt-2 rounded-md'>
-                                                <div className='w-full mt-2'>
-                                                    <h1 className="text-center font-bold">Comments</h1>
-                                                    {
-                                                        e.comments.length === 0 ? (
-                                                            <div className='mx-auto w-[80%] h-[200px]  flex items-center justify-center'>
-                                                                <span className='text-gray-400 text-[20px]'>No comments yet</span>
-                                                            </div>
-                                                        ) : (
-                                                            e.comments.map((comment, key) => (
-                                                                <div key={key} className='w-full mt-2'>
-                                                                    <div className='mx-auto w-[100%] border-b'>
-                                                                        <div className="px-3 mt-2">
-                                                                            <h1 className='font-bold text-sm'>{comment.postedBy}</h1>
-                                                                            <h1 className='text-sm'>{comment.posted_on}</h1>
-                                                                            <p className='text-sm pt-2 pb-4'>{comment.comment}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            ))
-                                                        )
-                                                    }
-                                                </div>
-                                            </div>
-                                        }
-                                        <button
-                                            type="button"
-                                            className="mt-4 rounded-md bg-black px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-                                            onClick={() => toggleEdit(e._id)}
-                                        >
-                                            Edit
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="mt-4 ml-4 rounded-md bg-black px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-                                            onClick={() => toggleComments(e._id)}
-                                        >
-                                            Comments
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
                         </div>
                     </div>
                 )}
+                {/* no blogs message */}
+
+
+                {
+                    myBlogs.length === 0 ? (
+                        <div className="h-full w-full flex items-center justify-center opacity-0" ref={noBlogs}>
+                            <div className="flex flex-col items-center mt-auto lg:mt-0 px-2 lg:flex-row">
+                                <div>
+                                    <div className="ml-5 lg:ml-0">
+                                        <h1 className="mt-3 text-2xl font-semibold text-gray-800 md:text-3xl">
+                                            Oops, no blogs are posted yet.
+                                        </h1>
+                                        <p className="mt-4 text-gray-500">
+                                            You haven't created any blogs yet, click the button below to create one.
+                                        </p>
+                                        <div className="mt-6 flex items-center gap-x-3">
+                                            <Link to="/">
+                                                <button
+                                                    type="button"
+                                                    className="inline-flex items-center rounded-md border border-black px-3 py-2 text-sm font-semibold text-black shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+                                                >
+                                                    Read blogs
+                                                </button>
+                                            </Link>
+                                            <Link to="/createBlogs">
+                                                <button
+                                                    type="button"
+                                                    className="rounded-md bg-black px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
+                                                >
+                                                    Create Blogs
+                                                </button>
+                                            </Link>
+                                        </div>
+                                    </div>
+                                    <div className="mt-10 space-y-6 ml-5 lg:ml-0">
+                                        <div>
+                                            <a
+                                                href="#"
+                                                className="hover:underline inline-flex items-center gap-x-2 text-sm font-semibold text-black"
+                                            >
+                                                <span>Learn something new</span>
+                                            </a>
+                                            <p className="mt-2 text-sm text-gray-500">Dive into our blogs to learn more.</p>
+                                        </div>
+                                        <div>
+                                            <a
+                                                href="#"
+                                                className="inline-flex items-center gap-x-2 text-sm font-semibold text-black hover:underline"
+                                            >
+                                                <span>Our blog</span>
+                                            </a>
+                                            <p className="mt-2 text-sm text-gray-500">Read the latest posts on our blog.</p>
+                                        </div>
+                                        <div>
+                                            <a
+                                                href="#"
+                                                className="inline-flex items-center gap-x-2 text-sm font-semibold text-black hover:underline"
+                                            >
+                                                <span>Chat</span>
+                                            </a>
+                                            <p className="mt-2 text-sm text-gray-500">Comment on different posts.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <img
+                                        src="/src/images/searchImages.jpg"
+                                        alt="404"
+                                        className="h-full w-[300px] lg:w-[400px] rounded-md object-cover"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="h-full w-full flex  flex-col  items-center overflow-y-auto">
+                            <h1 className="font-bold text-[25px] pt-6 text-center">Total Blogs - {myBlogs.length}</h1>
+                            {myBlogs.map(blog => (
+                                <div key={blog._id} className="p-4 mb-4 border w-[95%] sm:w-[500px] mt-5 rounded-lg shadow-md">
+                                    <h2 className="text-xl font-bold mb-2">{blog.title}</h2>
+                                    <p className="mb-2">{blog.description}</p>
+                                    <img src={blog.urlToImage || searchImages} alt={blog.title} className="w-full h-40 object-contain rounded-md mb-2" />
+                                    
+                                  <div className="flex items-center justify-center gap-2">  
+                                    <button onClick={() => toggleEdit(blog._id)} className="bg-blue-500 text-white p-1 sm:px-4 sm:py-2 rounded-md">Edit</button>
+                                    <button onClick={() => toggleComments(blog._id)} className=" bg-green-500 text-white p-1 sm:px-4 sm:py-2 rounded-md">
+                                        {Toshow[blog._id] ? 'Hide Comments' : 'Show Comments'}
+                                    </button>
+                                    <Link className="bg-blue-500 p-1 text-white sm:px-4 sm:py-2  rounded-md cursor-pointer" to='/blogInfo' key={blog._id} state={{ article: blog }}>
+                                        Read more
+                                    </Link>
+                                    </div>
+
+                                    {Toshow[blog._id] && (
+                                        <div className='border mt-2 rounded-md'>
+                                            <div className='w-full mt-2'>
+                                                <h1 className="text-center font-bold">Comments</h1>
+                                                {blog.comments.length === 0 ? (
+                                                    <div className='mx-auto w-[80%] h-[200px] flex items-center justify-center'>
+                                                        <span className='text-gray-400 text-[20px]'>No comments yet</span>
+                                                    </div>
+                                                ) : (
+                                                    blog.comments.map((comment, key) => (
+                                                        <div key={key} className='w-full mt-2'>
+                                                            <div className='mx-auto w-[100%] border-b'>
+                                                                <div className="px-3 mt-2">
+                                                                    <h1 className='font-bold text-sm'>{comment.postedBy}</h1>
+                                                                    <h1 className='text-sm'>{comment.posted_on}</h1>
+                                                                    <p className='text-sm pt-2 pb-4'>{comment.comment}</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )
+                }
             </div>
         </>
     );
 }
 
 export default MyBlogs;
-
-

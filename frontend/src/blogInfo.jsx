@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { MyContext } from './App.jsx';
+import loaderImg from './images/loader.svg';
 
 function BlogInfo() {
     const location = useLocation();
@@ -9,9 +10,9 @@ function BlogInfo() {
     const [content1, setContent1] = useState("");
     const { authState, setAuthState } = useContext(MyContext);
     const [loadingPage, setLoadingPage] = useState(false);
-    const commentPostedReference = useRef(null)
     const [finalCommentDiv, setFinalCommentDiv] = useState([]);
-    const [commentPosted,setcommentPosted] = useState("");
+    const [commentPosted, setcommentPosted] = useState("");
+
 
     const [commentValue, setCommentValue] = useState({
         comment: "",
@@ -28,11 +29,11 @@ function BlogInfo() {
         if (article) {
             gettingComment();
         }
-    }, [article,commentPosted]);
+    }, [article, commentPosted]);
 
     async function gettingComment() {
         let articleId = article._id;
-    
+
         try {
             const fetchData = await fetch("http://localhost:7000/get_comments", {
                 method: "POST",
@@ -42,8 +43,8 @@ function BlogInfo() {
                 credentials: 'include',
                 body: JSON.stringify({ articleId }),
             });
-    
-            const data = await fetchData.json();    
+
+            const data = await fetchData.json();
             if (data && data.comments && Array.isArray(data.comments)) {
                 let commentArray = data.comments.map((e, key) => (
                     <div key={key} className='w-full mt-2'>
@@ -56,17 +57,17 @@ function BlogInfo() {
                         </div>
                     </div>
                 ));
-    
+
                 setFinalCommentDiv(commentArray);
             } else {
                 setFinalCommentDiv([]);
             }
-    
+
         } catch (error) {
             console.log(error);
         }
     }
-    
+
 
     function readMore(str) {
         let arrayOfString = str.split(" ");
@@ -106,15 +107,16 @@ function BlogInfo() {
                 });
 
                 let data = await response.json();
+                window.location.reload();
                 setcommentPosted(data.msg);
-                
+                setTimeout(()=>{setcommentPosted("")},5000)
 
                 const newComment = {
                     postedBy: authState.username, // Assuming the username is in authState
                     posted_on: new Date().toISOString(), // Set current date
                     comment: commentValue.comment
                 };
-    
+
                 setFinalCommentDiv((prevComments) => [
                     <div key={prevComments.length} className='w-full mt-2'>
                         <div className='mx-auto w-[95%] md:w-[80%] border rounded-lg'>
@@ -127,15 +129,7 @@ function BlogInfo() {
                     </div>,
                     ...prevComments
                 ]);
-    
-
-
-                commentPostedReference.current.style.right="0";
-                setTimeout(()=>{
-                    commentPostedReference.current.style.right="-400px";
-                    
-                },2000)
-            } 
+            }
             else {
                 console.error("Failed to submit comment:", response.statusText);
             }
@@ -150,10 +144,10 @@ function BlogInfo() {
     function removeHtmlTags(str) {
         // Remove all img tags and their attributes
         let cleanedStr = str.replace(/<img\b[^>]*>/gi, '');
-    
+
         // Optionally, remove other tags if needed
         cleanedStr = cleanedStr.replace(/<[^>]+>/g, '');
-    
+
         return cleanedStr;
     }
 
@@ -161,15 +155,15 @@ function BlogInfo() {
         <div className="h-[87vh] overflow-y-scroll w-screen">
             {loadingPage && (
                 <div className='fixed h-screen w-screen top-0 left-0 z-50 flex items-center justify-center rounded-xl'>
-                    <img src='/src/images/loader.svg' className='fixed w-[150px]' alt='loading' />
+                    <img src={loaderImg} className='fixed w-[150px]' alt='loading' />
                 </div>
             )}
 
-            <div className=" rounded-l-md fixed right-[-400px] border-2 border-green-400 bg-green-100 p-4 w-[400px] transition-all" ref={commentPostedReference} >
+            {commentPosted.length > 0 &&
 
-                <p className="text-sm font-medium p-2 text-green-600 text-left">{commentPosted}</p>
+                <p className="text-sm  bg-green-200 py-2 w-full text-green-600 fixed  top-[13vh] z-50 text-center">{commentPosted} <span className='absolute right-4 text-green-600 hover:cursor-pointer text-[20px] font-extrabold' onClick={() => { setcommentPosted("") }}>&#10005;</span></p>
 
-            </div>
+            }
             <div>
                 <div className="mx-auto md:mt-10 md:w-[80%] rounded-md border overflow-hidden">
                     <img
@@ -231,7 +225,7 @@ function BlogInfo() {
                                 <span className='text-gray-400 text-[20px]'>No comments yet</span>
                             </div>
                         ) : (
-                            finalCommentDiv.map((e)=>{return(e)})
+                            finalCommentDiv.map((e) => { return (e) })
                         )}
                     </div>
                 </div>

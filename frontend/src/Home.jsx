@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './css/blog.css';
+import loaderImg from './images/loader.svg';
+import laptopImg from './images/laptop.jpg';
+
 
 function Home() {
   let slider = useRef(null);
-  let sliderError = useRef(null);
-
   let [selectedBlogName, setSelectedBlogName] = useState(() => {
-    // Retrieve the stored blog name from localStorage
     const storedBlogName = localStorage.getItem('selectedBlogName');
-    return storedBlogName || 'All'; // Default to 'All' if nothing is stored
+    return storedBlogName || 'All'; 
   });
+
+
+
 
   let [categorizedBlogsArray, setCategorizedBlogsArray] = useState([]);
   let [loadingPage, setLoadingPage] = useState(true);
@@ -65,6 +68,7 @@ function Home() {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials:"include",
         body: JSON.stringify({ blogName })
       });
       let data = await blogData.json();
@@ -72,13 +76,8 @@ function Home() {
       if (!blogData.ok) {
         setLoadingPage(false);
         setErrorMsg(data.msg);
-        sliderError.current.innerText = `${data.msg}`;
-        sliderError.current.style.right = "0px";
+        setTimeout(()=>{setErrorMsg("")},5000)
         setSearchValueHolder("");
-        setTimeout(() => {
-          sliderError.current.innerText = ``;
-          sliderError.current.style.right = "-400px";
-        }, 3000);
         setSelectedBlogName("All");
         throw new Error(`HTTP error! Status: ${blogData.status}`);
       }
@@ -182,14 +181,15 @@ function Home() {
       }
         {loadingPage && (
           <div className='fixed h-screen w-screen top-0 left-0 z-50 flex items-center justify-center rounded-xl'>
-            <img src='/src/images/loader.svg' className='fixed w-[80px]' alt='loading' />
+            <img src={loaderImg} className='fixed w-[80px]' alt='loading' />
           </div>
         )}
 
-        <div className="rounded-l-md fixed right-[-400px] border-2 border-red-400 bg-red-100 p-4 w-[400px] transition-all" ref={sliderError}>
-          <p className="text-sm font-medium md:text-left text-center text-red-600">{errorMsg}</p>
-        </div>
+    { errorMsg.length> 0 &&
 
+          <p className="text-sm  bg-red-200 py-2 w-full text-red-600 fixed  top-[13vh] z-50 text-center">{errorMsg} <span className='absolute right-4 text-red-600 hover:cursor-pointer text-[20px] font-extrabold' onClick={()=>{setErrorMsg("")}}>&#10005;</span></p>
+        
+    }
         <div className="items-center flex justify-center">
           <div id='image'>
             <p className='text-white font-bold font-serif text-center text-[18px] sm:text-[30px]'>"Tell the world about yourself"</p>
@@ -199,7 +199,7 @@ function Home() {
                 <Link to='/createBlogs'>Create Blogs</Link>
               </button>
             </div>
-            <img src="/src/images/laptop.jpg" className="absolute top-0 object-cover h-full w-full z-[-1]" />
+            <img src={laptopImg} className="absolute top-0 object-cover h-full w-full z-[-1]" />
           </div>
         </div>
 

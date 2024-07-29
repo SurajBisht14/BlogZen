@@ -1,6 +1,7 @@
-import React, { useRef, useState ,useContext} from 'react';
-import { Link ,useNavigate } from 'react-router-dom';
-import { MyContext} from './App.jsx';
+import React, { useRef, useState, useContext } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { MyContext } from './App.jsx';
+import loaderImg from './images/loader.svg';
 
 function SignUp() {
   const [formData, setFormData] = useState({
@@ -10,7 +11,7 @@ function SignUp() {
     confirmPassword: '',
   });
   const navigate = useNavigate();
-  const {authState,setAuthState} = useContext(MyContext)
+  const { authState, setAuthState } = useContext(MyContext)
 
   const [loadingPage, setLoadingPage] = useState(false);
   const passRef1 = useRef(null);
@@ -42,6 +43,7 @@ function SignUp() {
           headers: {
             "Content-Type": "application/json"
           },
+          credentials : 'include',
           body: JSON.stringify(formData)
         });
 
@@ -52,10 +54,10 @@ function SignUp() {
           setsuccessMsg(data.msg);
           setTimeout(() => {
             setsuccessMsg("");
-            if(!authState.isAuth){
+            if (!authState.isAuth) {
               navigate('/login')
             }
-           
+
           }, 1000);
           setFormData({
             username: '',
@@ -68,7 +70,7 @@ function SignUp() {
           setErrorMsg(data.error);
           setTimeout(() => {
             setErrorMsg("")
-          }, 2000);
+          }, 5000);
         }
       }
       catch (error) {
@@ -80,13 +82,22 @@ function SignUp() {
   return (
     <div className="h-[87vh]  flex items-center justify-center relative overflow-hidden">
 
-      {ErrorMsg && <div className='absolute transition-all top-[0] bg-red-200 text-red-600 z-[30] border-2 border-red-600 w-full  font-bold h-[5%] p-5 flex items-center justify-center font-serif text-[25px]'>{ErrorMsg}</div>}
-      {successMsg && <div className='absolute  transition-all top-[0] bg-green-200 text-green-600 z-[30] border-2 border-green-600 w-full  font-bold h-[5%] p-5 flex items-center justify-center font-serif text-[25px]'>{successMsg}</div>}
+      {ErrorMsg.length > 0 &&
+
+        <p className="text-sm  bg-red-200 py-2 w-full text-red-600 fixed  top-[13vh] z-50 text-center">{ErrorMsg} <span className='absolute right:0 pd-1 md:right-4 text-red-600 hover:cursor-pointer text-[20px] font-extrabold' onClick={() => { setErrorMsg("") }}>&#10005;</span></p>
+
+      }
+
+      {successMsg.length > 0 &&
+
+        <p className="text-sm  bg-green-200 py-2 w-full text-green-600 fixed  top-[13vh] z-50 text-center">{successMsg} <span className='absolute  right-4 text-green-600 hover:cursor-pointer text-[20px] font-extrabold' onClick={() => { setsuccessMsg("") }}>&#10005;</span></p>
+
+      }
 
       <div className="bg-white px-8 pt-1 rounded-xl  h-[95%]  w-[90%] sm:w-full max-w-md relative  shadow-[-1px_-1px_10px_rgba(0,0,0,.1),1px_1px_10px_rgba(0,0,0,.1)]">
         {loadingPage && (
           <div className='absolute top-0 left-0 h-full w-full z-50 flex items-center justify-center rounded-xl'>
-            <img src='/src/images/loader.svg' alt='loading' className='w-[90px]' />
+            <img src={loaderImg} alt='loading' className='w-[90px]' />
           </div>
         )}
         <h2 className="text-2xl font-bold mb-6 text-center">Sign Up</h2>

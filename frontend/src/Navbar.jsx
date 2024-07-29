@@ -2,6 +2,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import headerText from './images/headerText.png';
 import { useRef, useState, useEffect, useContext } from "react";
 import { MyContext } from './App.jsx';
+import loaderImg from './images/loader.svg';
+import userImg from './images/user.svg';
 
 
 function Navbar() {
@@ -73,7 +75,7 @@ function Navbar() {
                 }
                 {loading && (
                     <div className='h-screen w-screen fixed flex items-center justify-center z-50'>
-                        <img src="/src/images/loader.svg" className='w-[100px]' alt="Loading" />
+                        <img src={loaderImg} className='w-[100px]' alt="Loading" />
                     </div>
                 )}
                 <img src={headerText} className="w-[200px] h-full object-cover z-[100]" alt="Header Text" />
@@ -87,12 +89,11 @@ function Navbar() {
                         <li><Link to='/createBlogs' className={`text-20px font-serif font-bold text-white pb-2 rounded-sm ${currentPath === '/createBlogs' ? 'border-b-4' : 'border-b-0'}`}>Create</Link></li>
                         <li><Link to='/signup' className={`text-20px font-serif font-bold text-white pb-2 rounded-sm ${currentPath === '/signup' ? 'border-b-4' : 'border-b-0'}`}>SignUp</Link></li>
                         {authState.isAuth ? (
-                            <li className=" text-[red]  items-center flex flex-col justify-center  cursor-pointer  pt-4 relative"> <img src="/src/images/user.svg" className="w-[20px]" onClick={callingSmallLogOutBox} />
+                            <li className=" text-[red]  items-center flex flex-col justify-center  cursor-pointer  pt-4 relative"> <img src={userImg} className="w-[20px]" onClick={callingSmallLogOutBox} />
                                 <span onClick={callingSmallLogOutBox} className="font-bold">{authState.username}</span>
-
                                 {
                                     showLogoutBox &&
-                                    <span className="h-[110px] flex flex-col items-center justify-center w-[100px] bg-[red] absolute top-[70px] rounded-md right-[-60px]">
+                                    <span className="h-[110px] flex flex-col items-center justify-center w-[100px] bg-[red] absolute top-[70px] rounded-md right-[-45px]">
                                         <span className="absolute right-[10px] text-black   top-0 text-[18px]  font-bold flex  items-center z-[100] hover:cursor-pointer hover:text-white" onClick={() => setshowLogoutBox(!showLogoutBox)}>&#10005;</span>
                                         <span className="text-black  flex items-center pl-1  mt-5 gap-2 w-full hover:text-white" onClick={() => { setshowLogoutBox(!showLogoutBox); SetYesLogOutpage(true) }}>
                                             <i className="fa-solid fa-right-from-bracket"></i>Logout
@@ -122,12 +123,12 @@ function Navbar() {
                 </nav>
                 {
                     authState.isAuth &&
-                    <li className="text-[red] h-full items-center lg:hidden flex  flex-col justify-center font-bold pt-3 cursor-pointer z-[100]  absolute top-0 right-[80px]"> <img src="/src/images/user.svg" className="w-[20px]" onClick={callingSmallLogOutBox} />
+                    <li className="text-[red] h-full items-center lg:hidden flex  flex-col justify-center font-bold  cursor-pointer z-[100]  absolute top-0 right-[70px]"> <img src={userImg} className="w-[20px]" onClick={callingSmallLogOutBox} />
                         <span onClick={callingSmallLogOutBox}>{authState.username}</span>
 
                         {
                             showLogoutBox &&
-                            <span className="h-[130px] flex flex-col items-center justify-center w-[130px] bg-[red]  absolute top-[85px] rounded-md right-[-80px]">
+                            <span className="h-[130px] flex flex-col items-center justify-center w-[130px] bg-[red]  absolute top-[80px] rounded-md right-[-55px]">
                                 <span className="absolute right-[10px] text-black    top-0 text-[20px]  font-bold flex  items-center z-[100] hover:cursor-pointer hover:text-white" onClick={() => setshowLogoutBox(!showLogoutBox)}>&#10005;</span>
                                 <span className="text-black  flex items-center pl-5  mt-5 gap-2 w-full hover:text-white" onClick={() => { setshowLogoutBox(!showLogoutBox); SetYesLogOutpage(true) }}>
                                     <i className="fa-solid fa-right-from-bracket"></i>Logout
@@ -139,9 +140,9 @@ function Navbar() {
                 }
 
                 {Nav ? (
-                    <span className="absolute right-[20px] text-white mt-[12px] text-[40px] flex lg:hidden items-center z-[100] hover:cursor-pointer " onClick={navbar}>&#10005;</span> //cross
+                    <span className="absolute right-[20px] text-white h-full  text-[40px] flex lg:hidden items-center z-[100] hover:cursor-pointer " onClick={navbar}>&#10005;</span> //cross
                 ) : (
-                    <span className="absolute right-[20px] text-white mt-[12px] text-[35px] flex lg:hidden items-center z-[100] hover:cursor-pointer" onClick={navbar}>&#9776;</span> //hamburger
+                    <span className="absolute right-[20px] text-white  h-full text-[35px] flex lg:hidden items-center z-[100] hover:cursor-pointer" onClick={navbar}>&#9776;</span> //hamburger
                 )}
             </header>
 
