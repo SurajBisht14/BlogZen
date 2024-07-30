@@ -129,7 +129,7 @@ function Navbar() {
                         {
                             showLogoutBox &&
                             <span className="h-[130px] flex flex-col items-center justify-center w-[130px] bg-[red]  absolute top-[80px] rounded-md right-[-55px]">
-                                <span className="absolute right-[10px] text-black    top-0 text-[20px]  font-bold flex  items-center z-[100] hover:cursor-pointer hover:text-white" onClick={() => setshowLogoutBox(!showLogoutBox)}>&#10005;</span>
+                                <span className="absolute right-[10px] text-black    top-0 text-[20px]  font-bold flex  items-center z-[105] hover:cursor-pointer hover:text-white" onClick={() => setshowLogoutBox(!showLogoutBox)}>&#10005;</span>
                                 <span className="text-black  flex items-center pl-5  mt-5 gap-2 w-full hover:text-white" onClick={() => { setshowLogoutBox(!showLogoutBox); SetYesLogOutpage(true) }}>
                                     <i className="fa-solid fa-right-from-bracket"></i>Logout
                                 </span>
