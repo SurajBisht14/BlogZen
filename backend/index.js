@@ -26,7 +26,7 @@ const { User, Category, Article, Comments } = require('./schema_model.js'); // I
 // )); 
 
 app.use(cors({
-  origin: 'https://blog-zen.vercel.app',
+  origin: 'https://blog-website-mern-blog-zen.vercel.app',
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
