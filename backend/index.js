@@ -160,10 +160,6 @@ app.post('/login', async (req, res) => {
     let token = jwt.sign({ id: userData._id }, process.env.SECRET_CODE, { expiresIn: '3h' });
     let tokenExpiration = new Date().getTime() + 3 * 60 * 60 * 1000; // 3 hours from now
 
-    // res.cookie('cookieOfUser', token, {
-    //   httpOnly: true,
-    //   secure: false
-    // });
     res.cookie('cookieOfUser', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // true in production
@@ -494,12 +490,11 @@ app.post('/deleteBlog', async (req, res) => {
   }
 });
 
-app.get('/test',(req,res)=>{
-    res.json({
-      msg:"everything is alright";
-    })
-})
-
+app.get('/test', (req, res) => {
+  res.json({
+    msg: "everything is alright"
+  });
+});
 
 
 //logOut
