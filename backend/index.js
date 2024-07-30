@@ -10,7 +10,7 @@ const cookieParser = require("cookie-parser");
 const moment = require('moment');         //time library
 
 function formatDate() {
-  return moment().format('MMMM Do YYYY, h:mm:ss a');
+  return moment().format('MMMM Do YYYY');
 }
 
 
