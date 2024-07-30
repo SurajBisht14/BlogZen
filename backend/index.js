@@ -494,7 +494,11 @@ app.post('/deleteBlog', async (req, res) => {
   }
 });
 
-
+app.get('/test',(req,res)=>{
+    res.json({
+      msg:"everything is alright";
+    })
+})
 
 
 
