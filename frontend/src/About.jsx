@@ -17,7 +17,7 @@ function About() {
                         </p>
                     </div>
                     <div className="w-full lg:w-6/12">
-                        <img  src={laptopImg} alt="people discussing on board" className=" w-full md:w-[500px] md:h-[500px] mx-auto rounded-md" />
+                        <img  src={laptopImg} alt="people discussing on board" className=" w-full md:w-[500px] md:h-[500px] mx-auto rounded-md object-cover" />
                     </div>
                 </div>
 

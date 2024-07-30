@@ -2,6 +2,7 @@ import React, { useRef, useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MyContext } from './App.jsx';
 import loaderImg from './images/loader.svg';
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 function SignUp() {
   const [formData, setFormData] = useState({
@@ -38,7 +39,7 @@ function SignUp() {
       setLoadingPage(true);       //showing load page
 
       try {
-        const response = await fetch('http://localhost:7000/signup', {
+        const response = await fetch(`${backendUrl}/signup`, {
           method: 'POST',
           headers: {
             "Content-Type": "application/json"

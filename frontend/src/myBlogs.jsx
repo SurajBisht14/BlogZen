@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef} from "react";
 import { Link } from "react-router-dom";
 import loaderImg from './images/loader.svg';
 import searchImages from './images/searchImages.jpg';
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 function MyBlogs() {
     const [myBlogs, setMyBlogs] = useState([]);
@@ -24,6 +25,8 @@ function MyBlogs() {
     const [successMsg, setSuccessMsg] = useState("");
     const [changeImage, setChangeImage] = useState(false);
     const [ErrorMsg, setErrorMsg] = useState("");
+    const [YesDeletePage,setYesDeletePage]=useState(false)
+    const deletingBlogId = useRef("");
 
 
     function handleInputChange(event) {
@@ -48,7 +51,7 @@ function MyBlogs() {
             setLoading(true);
             try {
                 // Fetch blogs
-                const blogsResponse = await fetch("http://localhost:7000/get_myBlogs", {
+                const blogsResponse = await fetch(`${backendUrl}/get_myBlogs`, {
                     method: "GET",
                     credentials: "include",
                 });
@@ -57,7 +60,7 @@ function MyBlogs() {
 
                 // Fetch comments for each blog
                 const commentsPromises = blogsData.allBlogs.map(blog =>
-                    fetch("http://localhost:7000/get_comments", {
+                    fetch(`${backendUrl}/get_comments`, {
                         method: "POST",
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
@@ -121,7 +124,7 @@ function MyBlogs() {
 
         try {
             setLoading(true);
-            const response = await fetch('http://localhost:7000/updateBlog', {
+            const response = await fetch(`${backendUrl}/updateBlog`, {
                 method: 'POST',
                 credentials: 'include',
                 body: finalFormData
@@ -182,6 +185,40 @@ function MyBlogs() {
         }));
     }
 
+    async function YesDeletePageFunction(){
+
+        setYesDeletePage(false);
+
+            try {
+                setLoading(true);
+                const response = await fetch(`${backendUrl}/deleteBlog`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                      },
+                    credentials: 'include',
+                    body: JSON.stringify({ articleId: deletingBlogId.current})
+                });
+                const data = await response.json();
+                if(response.ok){
+                    setSuccessMsg(data.msg)
+                    setTimeout(()=>setSuccessMsg(""),1000);
+                    deletingBlogId.current="";
+                }
+                else{
+                    setErrorMsg(data.ErrorMsg);
+                    setTimeout(()=>setErrorMsg(""),5000);
+                    deletingBlogId.current="";
+                }
+            }
+            catch(error){
+                        console.log(error)
+            }
+            finally{
+                setLoading(false)
+            }
+    }
+
     return (
         <>
             <div className="w-full h-[87vh] overflow-y-scroll relative flex flex-col items-center justify-center">
@@ -201,6 +238,20 @@ function MyBlogs() {
                     <p className="text-sm  bg-green-200 py-2 w-full text-green-600 fixed  top-[13vh] z-50 text-center">{successMsg} <span className='absolute  right-4 text-green-600 hover:cursor-pointer text-[20px] font-extrabold' onClick={() => { setSuccessMsg("") }}>&#10005;</span></p>
 
                 }
+
+                {YesDeletePage &&
+                    <div className="h-screen w-screen bg-[rgba(0,0,0,.9)] z-50  flex items-center justify-center top-0 fixed">
+                        <div className="bg-[rgba(255,255,255,.8)]  w-[400px] h-[100px] rounded-lg flex items-center justify-center flex-col  font-serif">
+                            <h1 className="text-center text-[20px]">Do you want to delete this post ?</h1>
+                            <div className="flex items-center  justify-center mt-4 gap-5 w-full">
+                                <button className="bg-indigo-500 hover:bg-indigo-600 rounded-lg w-[20%] p-1 text-white" onClick={() => setYesDeletePage(false)}>No</button>
+                                <button className="bg-indigo-500 hover:bg-indigo-600 rounded-lg w-[20%] p-1 text-white" onClick={YesDeletePageFunction}>Yes</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+
                 {/* blog update */}
                 {showUpdatebox && (
                     <div className="w-full h-full fixed z-20 overflow-y-scroll flex justify-center  bg-[rgba(0,0,0,.6)] backdrop-blur-sm">
@@ -361,7 +412,7 @@ function MyBlogs() {
                                 </div>
                                 <div>
                                     <img
-                                        src="/src/images/searchImages.jpg"
+                                        src={searchImages}
                                         alt="404"
                                         className="h-full w-[300px] lg:w-[400px] rounded-md object-cover"
                                     />
@@ -375,16 +426,24 @@ function MyBlogs() {
                                 <div key={blog._id} className="p-4 mb-4 border w-[95%] sm:w-[500px] mt-5 rounded-lg shadow-md">
                                     <h2 className="text-xl font-bold mb-2">{blog.title}</h2>
                                     <p className="mb-2">{blog.description}</p>
-                                    <img src={blog.urlToImage || searchImages} alt={blog.title} className="w-full h-40 object-contain rounded-md mb-2" />
-                                    
-                                  <div className="flex items-center justify-center gap-2">  
-                                    <button onClick={() => toggleEdit(blog._id)} className="bg-blue-500 text-white p-1 sm:px-4 sm:py-2 rounded-md">Edit</button>
-                                    <button onClick={() => toggleComments(blog._id)} className=" bg-green-500 text-white p-1 sm:px-4 sm:py-2 rounded-md">
-                                        {Toshow[blog._id] ? 'Hide Comments' : 'Show Comments'}
-                                    </button>
-                                    <Link className="bg-blue-500 p-1 text-white sm:px-4 sm:py-2  rounded-md cursor-pointer" to='/blogInfo' key={blog._id} state={{ article: blog }}>
-                                        Read more
-                                    </Link>
+                                    <img src={blog.urlToImage || searchImages} alt={blog.title} className="w-full h-[200px] sm:h-[300px] rounded-md mb-2" />
+
+                                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                                        <button onClick={() => toggleEdit(blog._id)} className="w-full sm:w-auto bg-blue-500 hover:bg-green-500 text-white px-4 py-2 rounded-md">Edit</button>
+                                        <button onClick={() => toggleComments(blog._id)} className="w-full sm:w-auto bg-blue-500 hover:bg-green-500 text-white  px-4 py-2 rounded-md">
+                                            {Toshow[blog._id] ? 'Hide Comments' : 'Show Comments'}
+                                        </button>
+                                        <Link className="w-full hover:bg-green-500 sm:w-auto text-center bg-blue-500 text-white px-4 py-2  rounded-md cursor-pointer" to='/blogInfo' key={blog._id} state={{ article: blog }}>
+                                            Read more
+                                        </Link>
+                                        <button className="w-full hover:bg-green-500 sm:w-auto bg-blue-500 text-white px-4 py-2 rounded-md" 
+                                        onClick={()=>{
+                                            setYesDeletePage(true)
+                                             deletingBlogId.current=blog._id;
+                                            }}
+                                        >
+                                            Delete Post
+                                        </button>
                                     </div>
 
                                     {Toshow[blog._id] && (

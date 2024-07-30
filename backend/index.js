@@ -23,7 +23,8 @@ const { User, Category, Article, Comments } = require('./schema_model.js'); // I
 //     origin: 'http://localhost:5173', // Your client URL
 //     credentials: true // Allow credentials (cookies) to be sent
 //   }
-// )); // Using CORS
+// )); 
+
 app.use(cors({
   origin: 'https://blog-zen.vercel.app',
   methods: ['GET', 'POST'],
@@ -189,11 +190,8 @@ app.post('/login', async (req, res) => {
 
 
 const storage = multer.diskStorage({
-  // destination: function (req, file, cb) {
-  //   cb(null, './images');  // Ensure this directory exists
-  // },
-  filename: function (req, file, cb) {
-    cb(null, `${Date.now()}_${file.originalname}`);  // Adding a unique timestamp
+   filename: function (req, file, cb) {
+    cb(null, `${Date.now()}_${file.originalname}`); 
   }
 });
 const upload = multer({ storage: storage });
@@ -214,11 +212,11 @@ const uploadOnCloudinary = async (localFilePath) => {
     let response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: "auto"
     })
-    // fs.unlinkSync(localFilePath);
+  
     return response
   }
   catch (error) {
-    // fs.unlinkSync(localFilePath);
+  
     console.log("can't upload file", error)
     return null
 
@@ -288,9 +286,6 @@ app.post('/createBlog', auth, upload.single("blogimg"), async (req, res) => {
 });
 
 
-
-//update blog
-
 app.post('/updateBlog', auth, upload.single("blogimg"), async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
@@ -316,6 +311,7 @@ app.post('/updateBlog', auth, upload.single("blogimg"), async (req, res) => {
 
     const { title, category_name, description, content, article_id } = req.body;
 
+    // Find or create the category
     let findCategory = await Category.findOne({ name: changeToUpperCase(category_name) });
     const username = await User.findOne({ _id: req.user.id });
 
@@ -341,6 +337,14 @@ app.post('/updateBlog', auth, upload.single("blogimg"), async (req, res) => {
       allArticleData.urlToImage = imageUrl;
     }
 
+    // Get the current article to check its original category
+    const currentArticle = await Article.findById(article_id);
+    if (!currentArticle) {
+      return res.status(404).json({ error: "Blog not found" });
+    }
+    const originalCategoryName = currentArticle.category_name;
+
+    // Update the article
     const result = await Article.findOneAndUpdate(
       { _id: article_id },
       allArticleData,
@@ -348,6 +352,14 @@ app.post('/updateBlog', auth, upload.single("blogimg"), async (req, res) => {
     );
 
     if (result) {
+      // Check if the original category has no articles left
+      if (originalCategoryName !== category_name) {
+        const originalCategoryCount = await Article.countDocuments({ category_name: originalCategoryName });
+        if (originalCategoryCount === 0) {
+          await Category.findOneAndDelete({ name: originalCategoryName });
+        }
+      }
+
       return res.json({ msg: "Blog updated successfully" });
     } else {
       return res.status(404).json({ error: "Blog not found" });
@@ -362,9 +374,6 @@ app.post('/updateBlog', auth, upload.single("blogimg"), async (req, res) => {
     return res.status(500).json({ error: `An error occurred: ${error}` });
   }
 });
-
-
-
 
 
 
@@ -445,6 +454,48 @@ app.get('/get_myBlogs', auth, async (req, res) => {
 
 
 })
+
+//delete my blog
+
+app.post('/deleteBlog', async (req, res) => {
+  try {
+    const { articleId } = req.body;
+
+    // Checking if the article exists
+    const searchArticle = await Article.findById(articleId);
+    if (!searchArticle) {
+      return res.status(404).json({ error: 'Blog not found' });
+    }
+
+    const categoryName = searchArticle.category_name;
+
+    // Get the count of articles in the same category
+    const articleCategoryCount = await Article.countDocuments({ category_name: categoryName });
+
+    // Delete the blog
+    const deleteBlog = await Article.deleteOne({ _id: articleId });
+
+    if (deleteBlog.deletedCount > 0) {
+      // Delete associated comments
+      await Comments.deleteMany({ articleId: articleId });
+
+      // Checking if the category needs to be deleted
+      if (articleCategoryCount === 1) { // If the only article in that category was the one deleted
+        await Category.findOneAndDelete({ name: categoryName });
+      }
+
+      res.status(200).json({ msg: 'Blog deleted successfully' });
+    } else {
+      res.status(500).json({ error: 'Failed to delete blog' });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'An error occurred while deleting the blog' });
+  }
+});
+
+
+
 
 
 //logOut

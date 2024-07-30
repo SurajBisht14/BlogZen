@@ -2,6 +2,7 @@ import { useState, useEffect, useContext, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { MyContext } from './App.jsx';
 import loaderImg from './images/loader.svg';
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 function BlogInfo() {
     const location = useLocation();
@@ -35,7 +36,7 @@ function BlogInfo() {
         let articleId = article._id;
 
         try {
-            const fetchData = await fetch("http://localhost:7000/get_comments", {
+            const fetchData = await fetch(`${backendUrl}/get_comments`, {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json'
@@ -91,7 +92,7 @@ function BlogInfo() {
         e.preventDefault();
         setLoadingPage(true);
         try {
-            const response = await fetch("http://localhost:7000/article_comments", {
+            const response = await fetch(`${backendUrl}/article_comments`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -107,9 +108,9 @@ function BlogInfo() {
                 });
 
                 let data = await response.json();
-                window.location.reload();
+                // window.location.reload();
                 setcommentPosted(data.msg);
-                setTimeout(()=>{setcommentPosted("")},5000)
+                setTimeout(()=>{setcommentPosted("")},3000)
 
                 const newComment = {
                     postedBy: authState.username, // Assuming the username is in authState
@@ -142,10 +143,8 @@ function BlogInfo() {
 
 
     function removeHtmlTags(str) {
-        // Remove all img tags and their attributes
+        
         let cleanedStr = str.replace(/<img\b[^>]*>/gi, '');
-
-        // Optionally, remove other tags if needed
         cleanedStr = cleanedStr.replace(/<[^>]+>/g, '');
 
         return cleanedStr;

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import './css/blog.css';
 import loaderImg from './images/loader.svg';
 import laptopImg from './images/laptop.jpg';
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 
 function Home() {
@@ -11,7 +12,6 @@ function Home() {
     const storedBlogName = localStorage.getItem('selectedBlogName');
     return storedBlogName || 'All'; 
   });
-
 
 
 
@@ -63,7 +63,7 @@ function Home() {
   const mainBlogFunction = async function (blogName) {
     try {
       setLoadingPage(true);
-      let blogData = await fetch('http://localhost:7000/', {
+      let blogData = await fetch(`${backendUrl}/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -195,9 +195,10 @@ function Home() {
             <p className='text-white font-bold font-serif text-center text-[18px] sm:text-[30px]'>"Tell the world about yourself"</p>
             <p className='text-white font-bold font-serif text-center text-[18px] sm:text-[30px]'>Start your journey</p>
             <div className='text-center w-full'>
-              <button className='bg-white p-3 px-16 text-[20px] rounded-lg font-serif hover:scale-[1.1] transition-all ease-in-out'>
-                <Link to='/createBlogs'>Create Blogs</Link>
+            <Link to='/createBlogs'> <button className='bg-white p-3 px-16 text-[20px] rounded-lg font-serif hover:scale-[1.1] transition-all ease-in-out'>
+                Create Blogs
               </button>
+              </Link>  
             </div>
             <img src={laptopImg} className="absolute top-0 object-cover h-full w-full z-[-1]" />
           </div>
@@ -216,7 +217,7 @@ function Home() {
                 <input
                   className="flex h-14 w-full rounded-md border border-black/30 bg-transparent px-3 py-2 text-sm placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-black/30 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
                   type="text"
-                  placeholder="Search Topics eg. Tech , Sports , Food"
+                  placeholder="Search Topics eg. Tech , Sports "
                   value={searchValueHolder}
                   onChange={searchOnchangefunc}
                 />
@@ -230,13 +231,33 @@ function Home() {
               </div>
             </div>
 
+          {/* show dropdown if categories lenght is increase  */}
+
+           { 
+           categoriesArray.length <= 10 ?
             <div className="mt-2 hidden w-full flex-col justify-between space-y-4 md:flex md:flex-row">
               <div id="slider" ref={slider}>
                 {categoriesArray.map((e) => e)}
               </div>
             </div>
+            :
+            <div className='md:w-1/2 mx-auto h-14 relative rounded-lg text-white text-[20px] font-serif  hidden md:flex  items-center justify-between bg-[rgba(0,0,0,1)]' onClick={dropDown}>
+            <span className='pl-2 text-[20px] sm:text-[25px]'>
+              {selectedBlogName}
+            </span>
+            <span className='flex h-full items-center pr-3 cursor-pointer'>
+              {!dropDownValue ? <i className="fa-solid fa-sort-up pt-2"></i> : <i className="fa-solid fa-sort-down pb-3"></i>}
+            </span>
 
-            <div className='w-full relative rounded-lg text-white text-[20px] font-serif flex md:hidden items-center justify-between bg-[rgba(0,0,0,.8)]' onClick={dropDown}>
+            {dropDownValue && (
+              <div className='transition-all absolute border-t-2 border-t-white w-full flex flex-col justify-around z-40 rounded-b-lg top-[85%] bg-[rgba(0,0,0,1)]'>
+                {phoneCategoriesArray.map((e) => e)}
+              </div>
+            )}
+          </div>
+          }
+
+            <div className='w-full  h-14 relative rounded-lg text-white text-[20px] font-serif flex md:hidden items-center justify-between bg-[rgba(0,0,0,1)]' onClick={dropDown}>
               <span className='pl-2 text-[20px] sm:text-[25px]'>
                 {selectedBlogName}
               </span>
@@ -245,7 +266,7 @@ function Home() {
               </span>
 
               {dropDownValue && (
-                <div className='lg:hidden transition-all absolute border-t-2 border-t-white w-full h-[300px] flex flex-col justify-around z-40 rounded-b-lg top-[85%] bg-[rgba(0,0,0,.8)]'>
+                <div className='lg:hidden transition-all absolute border-t-2 border-t-white w-full  flex flex-col justify-around z-40 rounded-b-lg top-[85%] bg-[rgba(0,0,0,1)]'>
                   {phoneCategoriesArray.map((e) => e)}
                 </div>
               )}

@@ -4,6 +4,7 @@ import { MyContext } from './App.jsx';
 import img from '/src/images/createBg.jpg';
 import loaderImg from './images/loader.svg';
 import robo from './images/robo.png';
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 function Blogs() {
     const [formData, setFormData] = useState({
@@ -51,7 +52,7 @@ function Blogs() {
 
         try {
             setLoading(true);
-            let fetchedData = await fetch('http://localhost:7000/createBlog', {
+            let fetchedData = await fetch(`${backendUrl}/createBlog`, {
                 method: 'POST',
                 credentials: 'include',
                 body: finalFormData

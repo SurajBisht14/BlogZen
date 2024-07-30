@@ -4,7 +4,7 @@ import { useRef, useState, useEffect, useContext } from "react";
 import { MyContext } from './App.jsx';
 import loaderImg from './images/loader.svg';
 import userImg from './images/user.svg';
-
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
 function Navbar() {
     const [Nav, setNav] = useState(false);
@@ -28,7 +28,7 @@ function Navbar() {
         SetYesLogOutpage(false);
         setLoading(true);  // Set loading to true before making request
         try {
-            let fetchData = await fetch('http://localhost:7000/logout', {
+            let fetchData = await fetch(`${backendUrl}/logout`, {
                 method: 'GET',
                 credentials: 'include',
             });
